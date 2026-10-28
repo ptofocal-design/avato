@@ -1,5 +1,5 @@
-const CACHE = 'avato-v4';
-const SHELL = ['./', 'index.html', 'styles.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'logo.webp', 'mark.png', 'wordmark.png'];
+const CACHE = 'avato-v5';
+const SHELL = ['./', 'index.html', 'styles.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'logo.webp', 'mark.png', 'wordmark.png', 'buho-ref.webp'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE).map(x => caches.delete(x)))));
