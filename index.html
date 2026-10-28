@@ -244,7 +244,7 @@
 
 <script src="styles.js"></script>
 <script>
-const VERSION = 'v3';
+const VERSION = 'v4';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const store = { get(k){ try { return localStorage.getItem(k) } catch { return null } },
@@ -276,7 +276,7 @@ async function checkKey() {
     const m = j.error?.message || '';
     if (r.ok) return { ok: true, msg: 'La clave funciona y tiene acceso al modelo de imágenes.' };
     if (r.status === 401 && /scope|permission/i.test(m)) return { ok: true, msg: 'La clave es válida (está restringida a imágenes, por eso no se puede revisar más).' };
-    if (r.status === 401) return { ok: false, msg: 'La clave de OpenAI no es válida: fijate que esté completa o creá una nueva en platform.openai.com → API keys.' };
+    if (r.status === 401) return { ok: false, msg: 'La clave de OpenAI no es válida: fijate que esté completa o creá una nueva en platform.openai.com → API keys.' + (m ? ` (OpenAI: ${m})` : '') };
     if (r.status === 403 && /verif/i.test(m)) return { ok: false, msg: 'OpenAI pide verificar tu organización para usar este modelo (platform.openai.com → Settings → Organization → Verify).' };
     if (r.status === 403 || r.status === 404) return { ok: false, msg: 'Tu cuenta de OpenAI todavía no tiene acceso al modelo de imágenes. ' + m };
     if (r.status === 429) return { ok: false, msg: 'Sin saldo o límite alcanzado en OpenAI. ' + m };
