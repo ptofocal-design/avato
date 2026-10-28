@@ -1,0 +1,14 @@
+{
+  "name": "AVATO · Creador de avatares",
+  "short_name": "AVATO",
+  "description": "Convertí una foto en un avatar con 52 estilos o copiando el estilo de otro avatar.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#010718",
+  "theme_color": "#010718",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

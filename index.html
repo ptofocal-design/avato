@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AVATO · Creador de avatares</title>
+<meta name="theme-color" content="#010718">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #010718; --panel: #071430; --panel2: #0c1d40; --line: #1b3366; --text: #eef5ff; --muted: #8ea6cf;
+    --pink: #22c8ff; --gold: #39e1ff; --violet: #2f7dff; --ok: #39e1ff; --danger: #ff6b7d; --ink: #021029;
+    --grad: linear-gradient(120deg, #1f6bff, #29d4ff);
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body { margin: 0; background: radial-gradient(1100px 560px at 50% -12%, #0b3a9a 0%, transparent 60%), radial-gradient(800px 500px at 100% 40%, #04205a 0%, transparent 60%), var(--bg);
+         background-attachment: fixed; color: var(--text); font: 15px/1.5 'DM Sans', system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 16px 60px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+  header .mark { width: 92px; height: 92px; flex: none; }
+  .brand h1 { margin: 0; line-height: 0; }
+  .brand h1 img { height: 74px; width: auto; mix-blend-mode: screen; }
+  .brand p { margin: 4px 0 0; color: var(--muted); font-size: .82rem; letter-spacing: .16em; text-transform: uppercase; }
+  button.primary { box-shadow: 0 0 22px #1f8bff66; }
+  .panel { background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
+  h2 { margin: 0 0 12px; font: 600 1.15rem 'Sora', sans-serif; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  h2 .n { width: 26px; height: 26px; border-radius: 50%; background: var(--grad); color: var(--ink); display: grid; place-items: center; font-size: .85rem; flex: none; }
+  h2 small { font: 400 .82rem 'DM Sans', sans-serif; color: var(--muted); }
+  details summary { cursor: pointer; font: 600 1.05rem 'Sora', sans-serif; }
+  label { font-size: .85rem; color: var(--muted); }
+  input[type=text], input[type=password], input[type=search], select, textarea {
+    width: 100%; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; font: inherit; }
+  textarea { resize: vertical; min-height: 44px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--violet); outline-offset: 1px; }
+  button { font: 600 .92rem 'DM Sans', sans-serif; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 9px 14px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--violet); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--grad); color: var(--ink); border: 0; }
+  .hint { font-size: .8rem; color: var(--muted); margin: 6px 0 0; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  /* modos */
+  .tabs { display: inline-flex; background: var(--panel2); border: 1px solid var(--line); border-radius: 14px; padding: 4px; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tabs button { border: 0; background: transparent; padding: 9px 16px; border-radius: 10px; color: var(--muted); }
+  .tabs button.on { background: var(--grad); color: var(--ink); }
+
+  /* zonas de carga */
+  .drops { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .drop { position: relative; border: 2px dashed var(--line); border-radius: 16px; min-height: 210px; display: grid; place-items: center; text-align: center;
+          cursor: pointer; overflow: hidden; background: var(--panel2); transition: border-color .15s, background .15s; }
+  .drop:hover, .drop.over { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 7%, var(--panel2)); }
+  .drop .empty { padding: 18px; color: var(--muted); }
+  .drop .empty b { display: block; color: var(--text); font: 600 1.05rem 'Sora', sans-serif; margin: 6px 0 2px; }
+  .drop .big { font-size: 2.2rem; }
+  .drop img { width: 100%; height: 100%; max-height: 300px; object-fit: contain; display: block; }
+  .drop .x { position: absolute; top: 8px; right: 8px; padding: 4px 10px; font-size: .8rem; background: #000a; }
+  .drop .tag { position: absolute; left: 8px; top: 8px; font-size: .75rem; background: #000a; padding: 3px 9px; border-radius: 8px; }
+
+  /* estilos */
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .filters button { padding: 6px 12px; font-size: .84rem; border-radius: 999px; }
+  .filters button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .stylebar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .stylebar input { flex: 1; min-width: 180px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .st { position: relative; text-align: left; padding: 0; overflow: hidden; border-radius: 14px; border: 2px solid transparent; background: var(--panel2); display: flex; flex-direction: column; }
+  .st .art { height: 74px; display: grid; place-items: center; font-size: 2.1rem;
+             background: linear-gradient(135deg, hsl(var(--h) 85% 62%), hsl(calc(var(--h) + 40) 75% 40%)); }
+  .st .tx { padding: 8px 10px 10px; }
+  .st b { display: block; font: 600 .92rem 'Sora', sans-serif; }
+  .st span { display: block; font: 400 .74rem/1.3 'DM Sans', sans-serif; color: var(--muted); margin-top: 2px; }
+  .st.on { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent), 0 0 22px color-mix(in srgb, var(--gold) 35%, transparent); }
+  .st.on::after { content: '✓'; position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: var(--gold); color: var(--ink); display: grid; place-items: center; font-weight: 800; font-size: .85rem; }
+  .picked { color: var(--gold); font-weight: 600; font-size: .88rem; }
+
+  /* ajustes */
+  .settings { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  .field > label { display: block; margin-bottom: 6px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg button { flex: 1; padding: 8px 10px; font-size: .84rem; min-width: 0; }
+  .seg button.on { background: color-mix(in srgb, var(--violet) 30%, var(--panel2)); border-color: var(--violet); }
+  input[type=range] { width: 100%; accent-color: var(--pink); }
+  .ticks { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); }
+  .intensity-val { color: var(--gold); font-weight: 700; }
+  .toggle { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .toggle input { width: 20px; height: 20px; accent-color: var(--ok); flex: none; margin-top: 2px; }
+  .toggle b { display: block; font-size: .92rem; }
+  .toggle span { font-size: .8rem; color: var(--muted); }
+
+  .go { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+  .go .primary { font-size: 1.05rem; padding: 13px 26px; border-radius: 14px; }
+  .cost b { color: var(--gold); }
+
+  /* resultados */
+  .results { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .res { background: var(--panel2); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+  .res .head { padding: 9px 12px; font-weight: 600; font-size: .9rem; display: flex; justify-content: space-between; gap: 8px; }
+  .res .head em { font-style: normal; color: var(--muted); font-weight: 400; font-size: .8rem; }
+  .res .body { aspect-ratio: 1; display: grid; place-items: center; background: #0d0a17; }
+  .res .body img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; display: block; }
+  .res .foot { padding: 9px 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: .78rem; color: var(--muted); }
+  .res .foot button { padding: 6px 10px; font-size: .8rem; }
+  .err { color: var(--danger); padding: 14px; font-size: .85rem; text-align: center; }
+  .wait { color: var(--muted); font-size: .85rem; display: grid; gap: 10px; justify-items: center; text-align: center; padding: 14px; }
+  .spin { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--pink); animation: r 1s linear infinite; }
+  @keyframes r { to { transform: rotate(360deg); } }
+  #zoom { position: fixed; inset: 0; background: #000d; display: none; place-items: center; z-index: 9; cursor: zoom-out; padding: 16px; }
+  #zoom img { max-width: 100%; max-height: 100%; }
+  footer { text-align: center; color: var(--muted); font-size: .78rem; margin-top: 26px; }
+  #splash { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: grid; place-items: center; transition: opacity .5s; cursor: pointer; }
+  #splash img { width: min(70vw, 70vh, 520px); animation: splash-in .7s ease-out both; }
+  #splash.out { opacity: 0; pointer-events: none; }
+  @keyframes splash-in { from { opacity: 0; transform: scale(.9); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+  [hidden] { display: none !important; }
+  @media (max-width: 560px) { header .mark { width: 64px; height: 64px; } .brand h1 img { height: 52px; } .grid { grid-template-columns: repeat(2, 1fr); } .go .primary { width: 100%; } }
+</style>
+</head>
+<body>
+<div id="splash"><img src="logo.webp" alt="AVATO"></div>
+<script>
+(() => { const sp = document.getElementById('splash'), close = () => { sp.classList.add('out'); setTimeout(() => sp.remove(), 600); };
+  sp.onclick = close; setTimeout(close, 1600); })();
+</script>
+<div class="wrap">
+  <header>
+    <img class="mark" src="mark.png" alt="">
+    <div class="brand"><h1><img src="wordmark.png" alt="AVATO · Avatar Creator"></h1><p>Creador de avatares con IA · 52 estilos</p></div>
+  </header>
+
+  <div class="panel">
+    <details id="keybox">
+      <summary>Clave de OpenAI (API key)</summary>
+      <p class="hint">Es la misma clave que usa PISTO. Se guarda solo en este navegador y se envía únicamente a OpenAI.</p>
+      <div class="row" style="margin-top:8px">
+        <input id="key" type="password" placeholder="sk-..." autocomplete="off" style="flex:1;min-width:220px">
+        <button id="clearKey">Borrar</button>
+      </div>
+      <p class="hint">Se obtiene en platform.openai.com → API keys (se paga por uso, con saldo prepago).</p>
+    </details>
+  </div>
+
+  <div class="panel">
+    <h2><span class="n">1</span> ¿Qué querés hacer?</h2>
+    <div class="tabs" role="tablist">
+      <button class="on" data-mode="style">🎨 Elegir un estilo</button>
+      <button data-mode="copy">🪄 Copiar el estilo de un avatar</button>
+    </div>
+    <div class="drops">
+      <div class="drop" id="dropPhoto" tabindex="0"></div>
+      <div class="drop" id="dropRef" tabindex="0" hidden></div>
+    </div>
+    <p class="hint" id="modeHint"></p>
+    <input type="file" id="filePhoto" accept="image/*" hidden>
+    <input type="file" id="fileRef" accept="image/*" hidden>
+  </div>
+
+  <div class="panel" id="stylePanel">
+    <h2><span class="n">2</span> Estilo <small>Podés marcar hasta 8 para comparar</small> <span class="picked" id="picked"></span></h2>
+    <div class="filters" id="filters"></div>
+    <div class="stylebar">
+      <input type="search" id="search" placeholder="Buscar estilo… (ej: 3D, anime, neón)">
+      <button id="surprise">🎲 Sorprendeme</button>
+      <button id="clearSel">Limpiar selección</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="panel">
+    <h2><span class="n" id="nAdj">3</span> Ajustes</h2>
+    <div class="settings">
+      <div class="field">
+        <label for="intensity">Intensidad de caricaturización: <span class="intensity-val" id="intVal"></span></label>
+        <input type="range" id="intensity" min="1" max="5" step="1" value="3">
+        <div class="ticks"><span>Sutil</span><span>Suave</span><span>Media</span><span>Fuerte</span><span>Extrema</span></div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="identity" checked>
+        <div><b>Conservar identidad facial</b><span>Que se reconozca a la persona: forma de cara, ojos, nariz, boca, piel, pelo, barba y anteojos.</span></div>
+      </label>
+      <div class="field">
+        <label>Fondo</label>
+        <div class="seg" id="bg">
+          <button data-v="white" class="on">⬜ Blanco de estudio</button>
+          <button data-v="scene">🏞️ Escenario del estilo</button>
+          <button data-v="both">Los dos</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Encuadre</label>
+        <div class="seg" id="frame">
+          <button data-v="same" class="on">Como la foto</button>
+          <button data-v="bust">Retrato</button>
+          <button data-v="full">Cuerpo entero</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="size">Formato</label>
+        <select id="size">
+          <option value="1024x1024">Cuadrado 1024 (perfil, redes)</option>
+          <option value="2048x2048">Cuadrado 2048 HD</option>
+          <option value="1024x1536">Vertical 2:3</option>
+          <option value="1152x2048">Vertical 9:16 (historias)</option>
+          <option value="1536x1024">Horizontal 3:2</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="quality">Calidad</label>
+        <select id="quality">
+          <option value="low">Borrador (barata, para probar)</option>
+          <option value="medium" selected>Media</option>
+          <option value="high">Alta</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column: 1 / -1">
+        <label for="notes">Indicaciones extra (opcional)</label>
+        <textarea id="notes" rows="2" placeholder="Ej: vestido de novia, con una cámara de fotos en la mano, sonriendo, con capa roja…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel go">
+    <div>
+      <div class="cost" id="costLine"></div>
+      <p class="hint" id="spent"></p>
+    </div>
+    <button class="primary" id="go" disabled>✨ Crear avatar</button>
+  </div>
+
+  <div class="panel" id="outPanel" hidden>
+    <h2>Resultados <small id="outInfo"></small></h2>
+    <div class="results" id="results"></div>
+  </div>
+
+  <footer id="ver"></footer>
+</div>
+<div id="zoom"><img alt=""></div>
+
+<script src="styles.js"></script>
+<script>
+const VERSION = 'v2';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const store = { get(k){ try { return localStorage.getItem(k) } catch { return null } },
+                set(k,v){ try { localStorage.setItem(k,v) } catch {} },
+                del(k){ try { localStorage.removeItem(k) } catch {} } };
+const readJson = (k, d) => { try { return JSON.parse(store.get(k)) ?? d; } catch { return d; } };
+const MODEL = 'gpt-image-2';
+const MAX_STYLES = 8;
+$('ver').textContent = 'AVATO ' + VERSION;
+
+// ---- estado
+const state = { mode: 'style', photo: null, ref: null, sel: new Set(readJson('avato_sel', ['pixar'])), cat: 'fav', bg: 'white', frame: 'same' };
+let busy = false;
+
+// ---- clave (compartida con PISTO: misma clave 'oai_key')
+$('key').value = store.get('oai_key') || '';
+if (!$('key').value) $('keybox').open = true;
+$('key').addEventListener('input', () => { store.set('oai_key', $('key').value.trim()); refresh(); });
+$('clearKey').onclick = () => { $('key').value = ''; store.del('oai_key'); $('keybox').open = true; refresh(); };
+
+// ---- modos
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+function setMode(m) {
+  state.mode = m;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  $('dropRef').hidden = m !== 'copy';
+  $('stylePanel').hidden = m !== 'style';
+  $('nAdj').textContent = m === 'style' ? '3' : '2';
+  $('modeHint').textContent = m === 'style'
+    ? 'Subí una foto (de una o varias personas) y elegí el estilo. También podés pegarla con Ctrl+V.'
+    : 'Subí tu foto y, al lado, la imagen de un avatar cuyo estilo quieras copiar. AVATO toma solo el estilo, no la cara del avatar.';
+  refresh();
+}
+
+// ---- zonas de carga
+function setupDrop(el, input, slot, title, sub, icon) {
+  const render = () => {
+    const f = state[slot];
+    if (!f) { el.innerHTML = `<div class="empty"><div class="big">${icon}</div><b>${title}</b>${sub}</div>`; return; }
+    el.innerHTML = `<span class="tag">${title}</span><img alt=""><button class="x">Quitar</button>`;
+    el.querySelector('img').src = f.url;
+    el.querySelector('.x').onclick = e => { e.stopPropagation(); URL.revokeObjectURL(f.url); state[slot] = null; render(); refresh(); };
+  };
+  el._render = render;
+  el.onclick = () => input.click();
+  el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } };
+  input.onchange = () => { if (input.files[0]) setImage(slot, input.files[0]); input.value = ''; };
+  el.ondragover = e => { e.preventDefault(); el.classList.add('over'); };
+  el.ondragleave = () => el.classList.remove('over');
+  el.ondrop = e => { e.preventDefault(); el.classList.remove('over'); const f = [...e.dataTransfer.files].find(f => f.type.startsWith('image/')); if (f) setImage(slot, f); };
+  render();
+}
+function setImage(slot, blob, name) {
+  if (state[slot]) URL.revokeObjectURL(state[slot].url);
+  state[slot] = { blob, name: name || blob.name || 'imagen', url: URL.createObjectURL(blob) };
+  (slot === 'photo' ? $('dropPhoto') : $('dropRef'))._render();
+  refresh();
+}
+setupDrop($('dropPhoto'), $('filePhoto'), 'photo', 'Tu foto', 'Tocá para elegir o arrastrala acá', '📸');
+setupDrop($('dropRef'), $('fileRef'), 'ref', 'Avatar de referencia', 'La imagen con el estilo a copiar', '🪄');
+
+// Ctrl+V: va a la foto, salvo que en modo copiar ya haya foto y falte la referencia
+window.addEventListener('paste', e => {
+  const f = [...(e.clipboardData?.items || [])].find(it => it.kind === 'file' && it.type.startsWith('image/'))?.getAsFile();
+  if (!f) return;
+  e.preventDefault();
+  setImage(state.mode === 'copy' && state.photo && !state.ref ? 'ref' : 'photo', f, 'pegada.png');
+});
+
+// ---- catálogo de estilos
+const byId = Object.fromEntries(STYLES.map(s => [s.id, s]));
+[...state.sel].forEach(id => { if (!byId[id]) state.sel.delete(id); });
+$('filters').innerHTML = [{ id: 'all', name: `Todos (${STYLES.length})` }, ...CATS]
+  .map(c => `<button data-c="${c.id}" class="${c.id === state.cat ? 'on' : ''}">${c.id === 'fav' ? '⭐ ' : ''}${c.name}</button>`).join('');
+$('filters').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  state.cat = b.dataset.c; $('search').value = '';
+  $('filters').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  renderGrid();
+};
+$('search').oninput = renderGrid;
+function visibleStyles() {
+  const q = $('search').value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (q) return STYLES.filter(s => (s.name + ' ' + s.desc).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q));
+  return STYLES.filter(s => state.cat === 'all' || (state.cat === 'fav' ? s.fav : s.cat === state.cat));
+}
+function renderGrid() {
+  const list = visibleStyles();
+  $('grid').innerHTML = list.length ? list.map(s => `
+    <button class="st ${state.sel.has(s.id) ? 'on' : ''}" data-id="${s.id}" style="--h:${s.h}" title="${esc(s.desc)}">
+      <div class="art">${s.e}</div><div class="tx"><b>${esc(s.name)}</b><span>${esc(s.desc)}</span></div>
+    </button>`).join('') : '<p class="hint">No hay estilos con ese nombre.</p>';
+  updatePicked();
+}
+$('grid').onclick = e => {
+  const b = e.target.closest('.st'); if (!b) return;
+  const id = b.dataset.id;
+  if (state.sel.has(id)) state.sel.delete(id);
+  else { if (state.sel.size >= MAX_STYLES) { alert(`Podés elegir hasta ${MAX_STYLES} estilos por tanda.`); return; } state.sel.add(id); }
+  b.classList.toggle('on', state.sel.has(id));
+  saveSel(); updatePicked(); refresh();
+};
+$('surprise').onclick = () => {
+  const pool = visibleStyles().filter(s => !state.sel.has(s.id));
+  const s = (pool.length ? pool : STYLES)[Math.floor(Math.random() * (pool.length || STYLES.length))];
+  state.sel = new Set([s.id]); saveSel(); renderGrid(); refresh();
+  document.querySelector(`.st[data-id="${s.id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+};
+$('clearSel').onclick = () => { state.sel.clear(); saveSel(); renderGrid(); refresh(); };
+const saveSel = () => store.set('avato_sel', JSON.stringify([...state.sel]));
+function updatePicked() {
+  const names = [...state.sel].map(id => byId[id].name);
+  $('picked').textContent = names.length ? '· ' + names.join(', ') : '';
+}
+
+// ---- ajustes
+function setupSeg(id, key) {
+  $(id).onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    state[key] = b.dataset.v;
+    $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    refresh();
+  };
+}
+setupSeg('bg', 'bg'); setupSeg('frame', 'frame');
+const INT_NAMES = ['Sutil', 'Suave', 'Media', 'Fuerte', 'Extrema'];
+$('intensity').oninput = () => { $('intVal').textContent = INT_NAMES[$('intensity').value - 1]; };
+$('intensity').oninput();
+$('size').onchange = $('quality').onchange = () => refresh();
+
+// ---- prompts
+const INTENSITY = [
+  'Stylization level 1/5 (subtle): keep realistic human proportions and anatomy; apply the style mainly through rendering, line work, colors and textures.',
+  'Stylization level 2/5 (light): gently simplify and stylize the features while keeping proportions close to the real person.',
+  'Stylization level 3/5 (medium): a balanced, clearly stylized character that follows the typical character design of the style.',
+  'Stylization level 4/5 (strong): push proportions and features strongly toward the style\'s typical character design, with expressive exaggeration.',
+  'Stylization level 5/5 (extreme): fully transformed into the style with maximum caricature exaggeration of the most distinctive features (nose, ears, smile, eyes, hair) and expression.'
+];
+const IDENTITY_ON = 'IDENTITY IS THE TOP PRIORITY: the character must be instantly recognizable as the same real person from the photo. Preserve their face shape, eye shape and eye color, eyebrows, nose, lips and smile, skin tone, hairstyle, hair color and hairline, facial hair, glasses, freckles, moles and other distinctive marks, apparent age and gender expression. Translate these exact features into the style instead of replacing them with generic ones. Keep their clothing recognizable too, adapted to the style.';
+const IDENTITY_OFF = 'Use the photo as a starting point: keep the general look (hair, skin tone, clothing colors), but you may freely reinterpret the facial features to fit the style.';
+const FRAME = {
+  same: 'Keep the same framing, pose and number of people as in the photo.',
+  bust: 'Frame it as a head-and-shoulders portrait, facing the viewer, well centered, ideal for a profile picture.',
+  full: 'Show the full body from head to toe in a natural, characterful pose, centered with some space around.'
+};
+const BG_WHITE = 'Background: a clean, seamless pure white (#FFFFFF) studio backdrop with soft even studio lighting and a subtle contact shadow; nothing else in the background.';
+const COMMON = 'If there are several people, transform all of them consistently. Do not add text, watermarks, logos, signatures or borders. High detail, clean, professional result.';
+
+function buildPrompt(opts, style, bg) {
+  const notes = opts.notes ? `Extra instructions from the user: ${opts.notes}.` : '';
+  const id = opts.identity ? IDENTITY_ON : IDENTITY_OFF;
+  if (opts.mode === 'copy') {
+    const bgTxt = bg === 'white' ? BG_WHITE : 'Background: a setting drawn in exactly the same style as the reference avatar, matching its world and mood (if the reference has a background, use a similar one).';
+    return `The FIRST image is a photo of a real person (or people). The SECOND image is a reference avatar. Recreate the person from the first image as a new avatar drawn/rendered in EXACTLY the same art style as the reference avatar: same medium and technique, line work, shading, textures, color palette, character proportions and level of stylization. Copy only the STYLE of the reference: do not copy the reference character's face, identity, hair or clothes. ${id} ${INTENSITY[opts.intensity - 1]} ${FRAME[opts.frame]} ${bgTxt} ${COMMON} ${notes}`.trim();
+  }
+  const bgTxt = bg === 'white' ? BG_WHITE : `Background: ${style.scene}, rendered in the same style as the character.`;
+  return `Transform the person in the photo into an original avatar character. Art style: ${style.look}. ${id} ${INTENSITY[opts.intensity - 1]} ${FRAME[opts.frame]} ${bgTxt} ${COMMON} ${notes}`.trim();
+}
+
+// ---- costos (mismo criterio que PISTO, calibrado con lo que informa OpenAI)
+const REF_USD = { low: 0.006, medium: 0.053, high: 0.211 };
+const RATE = { text: 5, image: 8, out: 30 };
+const usd = x => x < 0.01 ? 'menos de US$ 0.01' : 'US$ ' + x.toFixed(2);
+const megapix = size => { const [w, h] = size.split('x').map(Number); return w * h / 1048576; };
+function estimateEach(size, quality, nIn) {
+  const c = readJson('avato_cal', {})[size + '|' + quality + '|' + nIn];
+  if (c && c.n) return { usd: c.avg, real: true };
+  return { usd: REF_USD[quality] * megapix(size) + 0.012 * nIn, real: false };
+}
+function realCost(u) {
+  if (!u || typeof u.output_tokens !== 'number') return null;
+  const d = u.input_tokens_details || {};
+  const split = typeof d.text_tokens === 'number' || typeof d.image_tokens === 'number';
+  const inCost = split ? (d.text_tokens || 0) * RATE.text + (d.image_tokens || 0) * RATE.image : (u.input_tokens || 0) * RATE.image;
+  return (inCost + u.output_tokens * RATE.out) / 1e6;
+}
+function recordCost(opts, cost) {
+  if (cost == null) return;
+  const cal = readJson('avato_cal', {}), k = opts.size + '|' + opts.quality + '|' + opts.nIn, c = cal[k] || { avg: cost, n: 0 };
+  c.avg = (c.avg * c.n + cost) / (c.n + 1); c.n = Math.min(c.n + 1, 20); cal[k] = c;
+  store.set('avato_cal', JSON.stringify(cal));
+  store.set('avato_spent', String((readJson('avato_spent', 0) || 0) + cost));
+  refresh();
+}
+function plan() {
+  const bgs = state.bg === 'both' ? ['white', 'scene'] : [state.bg];
+  const styles = state.mode === 'style' ? [...state.sel].map(id => byId[id]) : [null];
+  return styles.flatMap(s => bgs.map(bg => ({ style: s, bg })));
+}
+
+function refresh() {
+  const nIn = state.mode === 'copy' ? 2 : 1, jobs = plan(), n = jobs.length;
+  const e = estimateEach($('size').value, $('quality').value, nIn);
+  const ready = state.photo && (state.mode === 'style' ? state.sel.size : state.ref);
+  const tag = e.real ? 'según tus generaciones anteriores' : 'estimación';
+  $('costLine').innerHTML = !n ? 'Elegí al menos un estilo.'
+    : `${n} ${n > 1 ? 'imágenes' : 'imagen'} ≈ <b>${usd(e.usd * n)}</b> <span class="hint">(${tag})</span>`;
+  const spent = readJson('avato_spent', 0) || 0;
+  $('spent').innerHTML = spent > 0 ? `Gastado con AVATO en este dispositivo: ${usd(spent)} · <a href="#" id="resetSpent" style="color:inherit">reiniciar</a>` : '';
+  const r = $('resetSpent'); if (r) r.onclick = ev => { ev.preventDefault(); store.del('avato_spent'); refresh(); };
+  $('go').disabled = busy || !ready || !n || !$('key').value.trim();
+  $('go').textContent = busy ? 'Creando…' : n > 1 ? `✨ Crear ${n} avatares` : '✨ Crear avatar';
+}
+
+// ---- utilidades de imagen
+function prepare(blob, max = 1536) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => { URL.revokeObjectURL(url); b ? resolve(b) : reject(new Error('No se pudo leer la imagen')); }, 'image/jpeg', 0.93);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Formato de imagen no compatible')); };
+    img.src = url;
+  });
+}
+const b64ToBlob = (b64, type) => { const bin = atob(b64), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type }); };
+const slug = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+async function callEdit(images, prompt, opts) {
+  const fd = new FormData();
+  fd.append('model', MODEL);
+  images.forEach((b, i) => fd.append('image[]', b, `imagen-${i + 1}.jpg`));
+  fd.append('prompt', prompt);
+  fd.append('size', opts.size);
+  fd.append('quality', opts.quality);
+  fd.append('output_format', 'png');
+  fd.append('n', '1');
+  const r = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: 'Bearer ' + $('key').value.trim() }, body: fd });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    let m = j.error?.message || ('Error ' + r.status);
+    if (r.status === 401) m = 'La clave de OpenAI no es válida.';
+    else if (r.status === 403 && /verif/i.test(m)) m = 'OpenAI pide verificar tu organización para usar este modelo (platform.openai.com → Settings → Organization → Verify).';
+    else if (r.status === 429) m = 'Límite alcanzado o sin saldo en la cuenta de OpenAI. ' + m;
+    else if (/safety|moderation|content policy/i.test(m)) m = 'OpenAI rechazó este pedido por sus reglas de contenido. Probá con otro estilo, otra foto o sin indicaciones extra.';
+    throw new Error(m);
+  }
+  const b64 = j.data?.[0]?.b64_json;
+  if (!b64) throw new Error('OpenAI no devolvió la imagen.');
+  return { blob: b64ToBlob(b64, 'image/png'), cost: realCost(j.usage) };
+}
+
+// ---- tarjetas
+function makeCard(title, sub) {
+  const el = document.createElement('div'); el.className = 'res';
+  el.innerHTML = `<div class="head"><span>${esc(title)}</span><em>${esc(sub)}</em></div><div class="body"></div><div class="foot"></div>`;
+  $('results').prepend(el);
+  return el;
+}
+function setWait(card) {
+  card.querySelector('.body').innerHTML = '<div class="wait"><div class="spin"></div>Creando avatar…<br>suele tardar entre 30 s y 2 min</div>';
+  card.querySelector('.foot').innerHTML = '';
+}
+function setError(card, msg, retry) {
+  card.querySelector('.body').innerHTML = `<div class="err">${esc(msg)}</div>`;
+  const foot = card.querySelector('.foot'); foot.innerHTML = '';
+  const b = document.createElement('button'); b.textContent = 'Reintentar'; b.onclick = retry; foot.append(b);
+}
+function setDone(card, blob, name, retry, cost) {
+  const url = URL.createObjectURL(blob);
+  const body = card.querySelector('.body'); body.innerHTML = '';
+  const img = new Image(); img.src = url; img.alt = name;
+  img.onclick = () => { $('zoom').querySelector('img').src = url; $('zoom').style.display = 'grid'; };
+  body.append(img);
+  const foot = card.querySelector('.foot'); foot.innerHTML = '';
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  const dl = document.createElement('button'); dl.className = 'primary'; dl.textContent = 'Descargar'; a.append(dl);
+  const rg = document.createElement('button'); rg.textContent = 'Otra versión'; rg.onclick = retry;
+  const ref = document.createElement('button'); ref.textContent = 'Usar como referencia'; ref.title = 'Pasa este avatar a "Copiar el estilo" para aplicarlo a otra foto';
+  ref.onclick = () => { setMode('copy'); setImage('ref', blob, name); state.photo && URL.revokeObjectURL(state.photo.url); state.photo = null; $('dropPhoto')._render(); refresh(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const info = document.createElement('span');
+  info.textContent = cost != null ? `costó ${usd(cost)}` : '';
+  foot.append(a, rg, ref, info);
+}
+$('zoom').onclick = () => $('zoom').style.display = 'none';
+
+// ---- generación
+async function runJob(card, images, prompt, opts, name) {
+  const retry = () => {
+    if (!confirm(`¿Generar otra versión? Cuesta ≈ ${usd(estimateEach(opts.size, opts.quality, opts.nIn).usd)}.`)) return;
+    runJob(card, images, prompt, opts, name);
+  };
+  setWait(card);
+  try {
+    const out = await callEdit(images, prompt, opts);
+    recordCost(opts, out.cost);
+    setDone(card, out.blob, name, retry, out.cost);
+  } catch (e) { setError(card, e.message, retry); }
+}
+
+$('go').onclick = async () => {
+  if (busy) return;
+  const jobs = plan();
+  const opts = { mode: state.mode, size: $('size').value, quality: $('quality').value, intensity: +$('intensity').value,
+                 identity: $('identity').checked, frame: state.frame, notes: $('notes').value.trim(), nIn: state.mode === 'copy' ? 2 : 1 };
+  const total = estimateEach(opts.size, opts.quality, opts.nIn).usd * jobs.length;
+  if (jobs.length > 1 && !confirm(`Vas a crear ${jobs.length} avatares, costo aproximado ${usd(total)} en OpenAI.\n\n¿Continuar?`)) return;
+  busy = true; refresh();
+  $('outPanel').hidden = false;
+  try {
+    const images = [await prepare(state.photo.blob)];
+    if (opts.mode === 'copy') images.push(await prepare(state.ref.blob));
+    const base = slug(state.photo.name.replace(/\.[^.]+$/, '')) || 'foto';
+    $('outInfo').textContent = '';
+    const runs = jobs.map(({ style, bg }) => {
+      const title = style ? style.name : 'Estilo copiado';
+      const card = makeCard(title, bg === 'white' ? 'Fondo blanco' : 'Escenario');
+      const name = `avato-${base}-${style ? style.id : 'copia'}-${bg === 'white' ? 'blanco' : 'escenario'}.png`;
+      return runJob(card, images, buildPrompt(opts, style, bg), opts, name);
+    });
+    $('outPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    await Promise.all(runs);
+  } catch (e) { alert(e.message); }
+  busy = false; refresh();
+};
+
+renderGrid();
+setMode('style');
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
