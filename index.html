@@ -100,6 +100,10 @@
   .results { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
   .res { background: var(--panel2); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
   .res .head { padding: 9px 12px; font-weight: 600; font-size: .9rem; display: flex; justify-content: space-between; gap: 8px; }
+  .res .head .del { padding: 0 7px; border: 0; background: none; color: var(--muted); font-size: 1rem; line-height: 1; }
+  .res .head .del:hover { color: var(--text); }
+  .go .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .outHead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .res .head em { font-style: normal; color: var(--muted); font-weight: 400; font-size: .8rem; }
   .res .body { aspect-ratio: 1; display: grid; place-items: center; background: #0d0a17; }
   .res .body img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; display: block; }
@@ -317,11 +321,14 @@
       <div class="cost" id="costLine"></div>
       <p class="hint" id="spent"></p>
     </div>
-    <button class="primary" id="go" disabled>✨ Crear avatar</button>
+    <div class="btns">
+      <button id="reset" title="Borra la foto, los personajes, los textos y los resultados para empezar con otro personaje">🧹 Empezar de cero</button>
+      <button class="primary" id="go" disabled>✨ Crear avatar</button>
+    </div>
   </div>
 
   <div class="panel" id="outPanel" hidden>
-    <h2>Resultados <small id="outInfo"></small></h2>
+    <div class="outHead"><h2>Resultados <small id="outInfo"></small></h2><button id="clearRes">Borrar resultados</button></div>
     <div class="results" id="results"></div>
   </div>
 
@@ -331,7 +338,7 @@
 
 <script src="styles.js"></script>
 <script>
-const VERSION = 'v7';
+const VERSION = 'v8';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const store = { get(k){ try { return localStorage.getItem(k) } catch { return null } },
@@ -704,7 +711,8 @@ async function callEdit(images, prompt, opts) {
 // ---- tarjetas
 function makeCard(title, sub) {
   const el = document.createElement('div'); el.className = 'res';
-  el.innerHTML = `<div class="head"><span>${esc(title)}</span><em>${esc(sub)}</em></div><div class="body"></div><div class="foot"></div>`;
+  el.innerHTML = `<div class="head"><span>${esc(title)}</span><span><em>${esc(sub)}</em><button class="del" title="Quitar este resultado">✕</button></span></div><div class="body"></div><div class="foot"></div>`;
+  el.querySelector('.del').onclick = () => { el.remove(); if (!$('results').children.length) $('outPanel').hidden = true; };
   $('results').prepend(el);
   return el;
 }
@@ -790,6 +798,24 @@ $('go').onclick = async () => {
     await Promise.all(runs);
   } catch (e) { alert(e.message); }
   busy = false; refresh();
+};
+
+// ---- limpiar: nada de un personaje anterior pasa al siguiente
+function clearResults() {
+  $('results').querySelectorAll('img').forEach(i => i.src.startsWith('blob:') && URL.revokeObjectURL(i.src));
+  $('results').innerHTML = ''; $('outPanel').hidden = true;
+}
+$('clearRes').onclick = () => { if (confirm('¿Borrar todos los resultados? Descargá antes los que quieras guardar.')) clearResults(); };
+$('reset').onclick = () => {
+  if (busy) return;
+  if (!confirm('¿Empezar de cero? Se borran la foto, los personajes de escenas, los textos y los resultados (descargá antes lo que quieras guardar).')) return;
+  for (const slot of ['photo', 'ref']) if (state[slot]) { URL.revokeObjectURL(state[slot].url); state[slot] = null; }
+  $('dropPhoto')._render(); $('dropRef')._render();
+  state.chars.forEach(c => URL.revokeObjectURL(c.url)); state.chars = []; renderChars();
+  for (const id of ['notes', 'asAnimal', 'sceneTxt']) $(id).value = '';
+  clearResults();
+  refresh();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 renderGrid();
