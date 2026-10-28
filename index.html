@@ -119,6 +119,15 @@
   .drop.owl { cursor: default; background: #fff; }
   .drop.owl:hover { border-color: var(--line); }
   .sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .chars { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .char { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+  .char img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; }
+  .char .row { padding: 6px; gap: 6px; background: var(--panel2); flex-wrap: nowrap; }
+  .char input { padding: 6px 8px; font-size: .85rem; }
+  .char button { padding: 6px 9px; font-size: .8rem; }
+  .char.add { background: var(--panel2); border: 2px dashed var(--line); display: grid; place-items: center; min-height: 150px; cursor: pointer; color: var(--muted); text-align: center; font-size: .9rem; }
+  .char.add:hover { border-color: var(--pink); }
+  .char.add b { display: block; font-size: 2rem; color: var(--text); }
   [hidden] { display: none !important; }
   @media (max-width: 560px) { header .mark { width: 64px; height: 64px; } .brand h1 img { height: 52px; } .grid { grid-template-columns: repeat(2, 1fr); } .go .primary { width: 100%; } }
 </style>
@@ -155,8 +164,9 @@
       <button class="on" data-mode="style">🎨 Elegir un estilo</button>
       <button data-mode="copy">🪄 Copiar el estilo de un avatar</button>
       <button data-mode="book">🦉 Personaje del libro</button>
+      <button data-mode="scene">🎬 Escenas del personaje</button>
     </div>
-    <div class="drops">
+    <div class="drops" id="drops">
       <div class="drop" id="dropPhoto" tabindex="0"></div>
       <div class="drop" id="dropRef" tabindex="0" hidden></div>
       <div class="drop owl" id="owlRef" hidden><span class="tag">Referencia fija: el Búho</span><img src="buho-ref.webp" alt="Búho de referencia"></div>
@@ -175,6 +185,39 @@
       <button id="clearSel">Limpiar selección</button>
     </div>
     <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="panel" id="scenePanel" hidden>
+    <h2><span class="n">2</span> Escena del libro <small>Los personajes salen idénticos a sus imágenes oficiales; solo cambian pose, gesto y acción</small></h2>
+    <div class="chars" id="chars"></div>
+    <input type="file" id="fileChars" accept="image/*" multiple hidden>
+    <p class="hint">Subí la imagen oficial de cada personaje (la que guardaste de “Personaje del libro”) y poné su nombre. Hasta 4.</p>
+    <div class="settings" style="margin-top:14px">
+      <label class="toggle">
+        <input type="checkbox" id="withOwl" checked>
+        <div><b>Incluir al Búho</b><span>Agrega al Búho de referencia como personaje de la escena (y ayuda a mantener el estilo).</span></div>
+      </label>
+      <div class="field">
+        <label>Resultado</label>
+        <div class="seg" id="sceneBg">
+          <button data-v="scene" class="on">🏞️ Ilustración con escenario</button>
+          <button data-v="white">⬜ Personajes sueltos</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Versiones para elegir</label>
+        <div class="seg" id="takes">
+          <button data-v="1" class="on">1</button>
+          <button data-v="2">2</button>
+          <button data-v="3">3</button>
+        </div>
+      </div>
+      <div class="field" style="grid-column: 1 / -1">
+        <label for="sceneTxt">¿Qué pasa en la escena?</label>
+        <textarea id="sceneTxt" rows="3" placeholder="Ej: Lio está sentado en el pasto leyendo un libro y el Búho, posado en su hombro, señala una página. Están contentos, es de tarde."></textarea>
+        <p class="hint">Nombrá a los personajes igual que en sus tarjetas. Para una página de libro conviene el formato Horizontal 3:2.</p>
+      </div>
+    </div>
   </div>
 
   <div class="panel" id="bookPanel" hidden>
@@ -219,12 +262,12 @@
   <div class="panel">
     <h2><span class="n" id="nAdj">3</span> Ajustes</h2>
     <div class="settings">
-      <div class="field">
+      <div class="field" id="fInt">
         <label for="intensity">Intensidad de caricaturización: <span class="intensity-val" id="intVal"></span></label>
         <input type="range" id="intensity" min="1" max="5" step="1" value="3">
         <div class="ticks"><span>Sutil</span><span>Suave</span><span>Media</span><span>Fuerte</span><span>Extrema</span></div>
       </div>
-      <label class="toggle">
+      <label class="toggle" id="fId">
         <input type="checkbox" id="identity" checked>
         <div><b>Conservar identidad facial</b><span>Que se reconozca a la persona: forma de cara, ojos, nariz, boca, piel, pelo, barba y anteojos.</span></div>
       </label>
@@ -288,7 +331,7 @@
 
 <script src="styles.js"></script>
 <script>
-const VERSION = 'v5';
+const VERSION = 'v6';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const store = { get(k){ try { return localStorage.getItem(k) } catch { return null } },
@@ -301,7 +344,7 @@ $('ver').textContent = 'AVATO ' + VERSION;
 
 // ---- estado
 const state = { mode: 'style', photo: null, ref: null, sel: new Set(readJson('avato_sel', ['pixar'])), cat: 'fav', bg: 'white', frame: 'same',
-                subject: 'auto', accent: 'auto', output: 'whole' };
+                subject: 'auto', accent: 'auto', output: 'whole', chars: [], sceneBg: 'scene', takes: '1' };
 let busy = false;
 
 // ---- clave (compartida con PISTO: misma clave 'oai_key')
@@ -343,12 +386,16 @@ function setMode(m) {
   $('owlRef').hidden = m !== 'book';
   $('stylePanel').hidden = m !== 'style';
   $('bookPanel').hidden = m !== 'book';
-  $('fBg').hidden = $('fFrame').hidden = m === 'book';
+  $('scenePanel').hidden = m !== 'scene';
+  $('drops').hidden = m === 'scene';
+  $('fBg').hidden = $('fFrame').hidden = m === 'book' || m === 'scene';
+  $('fInt').hidden = $('fId').hidden = m === 'scene';
   $('nAdj').textContent = m === 'copy' ? '2' : '3';
   $('modeHint').textContent = {
     style: 'Subí una foto (de una o varias personas) y elegí el estilo. También podés pegarla con Ctrl+V.',
     copy: 'Subí tu foto y, al lado, la imagen de un avatar cuyo estilo quieras copiar. AVATO toma solo el estilo, no la cara del avatar.',
-    book: 'Subí una foto (persona, animal u objeto) y AVATO la convierte en un personaje nuevo dibujado igual que el Búho. Sale con fondo blanco y borde de sticker.'
+    book: 'Subí una foto (persona, animal u objeto) y AVATO la convierte en un personaje nuevo dibujado igual que el Búho. Sale con fondo blanco y borde de sticker.',
+    scene: 'Armá ilustraciones del libro con tus personajes ya creados: siempre iguales, en la pose y situación que describas.'
   }[m];
   refresh();
 }
@@ -385,7 +432,8 @@ window.addEventListener('paste', e => {
   const f = [...(e.clipboardData?.items || [])].find(it => it.kind === 'file' && it.type.startsWith('image/'))?.getAsFile();
   if (!f) return;
   e.preventDefault();
-  setImage(state.mode === 'copy' && state.photo && !state.ref ? 'ref' : 'photo', f, 'pegada.png');
+  if (state.mode === 'scene') addChar(f);
+  else setImage(state.mode === 'copy' && state.photo && !state.ref ? 'ref' : 'photo', f, 'pegada.png');
 });
 
 // ---- catálogo de estilos
@@ -445,6 +493,38 @@ function setupSeg(id, key) {
 }
 setupSeg('bg', 'bg'); setupSeg('frame', 'frame');
 setupSeg('subject', 'subject'); setupSeg('accent', 'accent'); setupSeg('output', 'output');
+setupSeg('sceneBg', 'sceneBg'); setupSeg('takes', 'takes');
+$('sceneTxt').oninput = $('withOwl').onchange = () => refresh();
+
+// ---- personajes para escenas
+const MAX_CHARS = 4;
+function addChar(blob, name = '') {
+  if (state.chars.length >= MAX_CHARS) { alert(`Hasta ${MAX_CHARS} personajes por escena.`); return; }
+  state.chars.push({ blob, name, url: URL.createObjectURL(blob) });
+  renderChars(); refresh();
+}
+function renderChars() {
+  const box = $('chars'); box.innerHTML = '';
+  state.chars.forEach((c, i) => {
+    const el = document.createElement('div'); el.className = 'char';
+    el.innerHTML = `<img alt=""><div class="row"><input type="text" placeholder="Nombre (ej: Lio)"><button title="Quitar">✕</button></div>`;
+    el.querySelector('img').src = c.url;
+    const inp = el.querySelector('input'); inp.value = c.name; inp.oninput = () => { c.name = inp.value.trim(); };
+    el.querySelector('button').onclick = () => { URL.revokeObjectURL(c.url); state.chars.splice(i, 1); renderChars(); refresh(); };
+    box.append(el);
+  });
+  if (state.chars.length < MAX_CHARS) {
+    const add = document.createElement('div'); add.className = 'char add'; add.tabIndex = 0;
+    add.innerHTML = '<div><b>+</b>Agregar personaje</div>';
+    add.onclick = () => $('fileChars').click();
+    add.ondragover = e => e.preventDefault();
+    add.ondrop = e => { e.preventDefault(); [...e.dataTransfer.files].filter(f => f.type.startsWith('image/')).forEach(f => addChar(f, baseLabel(f.name))); };
+    box.append(add);
+  }
+}
+const baseLabel = n => /^(avato|pegada|image|img)/i.test(n) ? '' : n.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+$('fileChars').onchange = () => { [...$('fileChars').files].forEach(f => addChar(f, baseLabel(f.name))); $('fileChars').value = ''; };
+renderChars();
 const INT_NAMES = ['Sutil', 'Suave', 'Media', 'Fuerte', 'Extrema'];
 $('intensity').oninput = () => { $('intVal').textContent = INT_NAMES[$('intensity').value - 1]; };
 $('intensity').oninput();
@@ -494,7 +574,18 @@ function bookPrompt(opts, out) {
   return `The FIRST image is a photo of the subject. The SECOND image is the reference character of a children's picture book (a cute owl). Create a NEW character for the same book, based on the subject of the first image, drawn in EXACTLY the same art style as the owl: ${BOOK_STYLE}. Do not copy the owl itself. ${SUBJECT[opts.subject]} ${as} ${keep} ${INTENSITY[opts.intensity - 1]} ${accent} ${layout} ${notes}`.trim();
 }
 
+function scenePrompt(opts) {
+  const list = opts.names.map((n, i) => `image ${i + 1} = ${n || 'a main character'}`);
+  if (opts.withOwl) list.push(`image ${list.length + 1} = the Owl ("el Búho")`);
+  const bg = opts.sceneBg === 'white'
+    ? 'Show only the characters, on a plain pure white background, with a white sticker-style border around their silhouettes, no scenery.'
+    : 'Make it a full picture-book illustration with a simple background in the same soft watercolor style and warm palette, gentle composition with some calm empty space for the page text.';
+  const notes = opts.notes ? `Extra instructions from the user: ${opts.notes}.` : '';
+  return `The attached images are the official reference images of the characters of a children's picture book (${list.join('; ')}). Draw a NEW illustration for the book showing: ${opts.scene}. Every character must stay perfectly ON-MODEL, exactly like its reference image: same face, head shape and proportions, hair, eye design and eye colors, clothes, colors, patterns and accessories. Only the pose, expression, viewing angle and action change as the scene requires. Do not add other characters unless the scene asks for them. Art style identical to the references: ${BOOK_STYLE}. ${bg} No text, letters, signatures or watermarks. ${notes}`.trim();
+}
+
 function buildPrompt(opts, style, bg) {
+  if (opts.mode === 'scene') return scenePrompt(opts);
   if (opts.mode === 'book') return bookPrompt(opts, bg);
   const notes = opts.notes ? `Extra instructions from the user: ${opts.notes}.` : '';
   const id = opts.identity ? IDENTITY_ON : IDENTITY_OFF;
@@ -532,16 +623,20 @@ function recordCost(opts, cost) {
   refresh();
 }
 function plan() {
+  if (state.mode === 'scene') return Array.from({ length: +state.takes }, () => ({ style: null, bg: 'take' }));
   if (state.mode === 'book') return (state.output === 'both' ? ['whole', 'sheet'] : [state.output]).map(bg => ({ style: null, bg }));
   const bgs = state.bg === 'both' ? ['white', 'scene'] : [state.bg];
   const styles = state.mode === 'style' ? [...state.sel].map(id => byId[id]) : [null];
   return styles.flatMap(s => bgs.map(bg => ({ style: s, bg })));
 }
 
+const inputCount = () => state.mode === 'style' ? 1 : state.mode === 'scene' ? state.chars.length + ($('withOwl').checked ? 1 : 0) : 2;
 function refresh() {
-  const nIn = state.mode === 'style' ? 1 : 2, jobs = plan(), n = jobs.length;
+  const nIn = inputCount(), jobs = plan(), n = jobs.length;
   const e = estimateEach($('size').value, $('quality').value, nIn);
-  const ready = state.photo && (state.mode === 'style' ? state.sel.size : state.mode === 'copy' ? state.ref : true);
+  const ready = state.mode === 'scene'
+    ? (state.chars.length || $('withOwl').checked) && $('sceneTxt').value.trim()
+    : state.photo && (state.mode === 'style' ? state.sel.size : state.mode === 'copy' ? state.ref : true);
   const tag = e.real ? 'según tus generaciones anteriores' : 'estimación';
   $('costLine').innerHTML = !n ? 'Elegí al menos un estilo.'
     : `${n} ${n > 1 ? 'imágenes' : 'imagen'} ≈ <b>${usd(e.usd * n)}</b> <span class="hint">(${tag})</span>`;
@@ -549,7 +644,8 @@ function refresh() {
   $('spent').innerHTML = spent > 0 ? `Gastado con AVATO en este dispositivo: ${usd(spent)} · <a href="#" id="resetSpent" style="color:inherit">reiniciar</a>` : '';
   const r = $('resetSpent'); if (r) r.onclick = ev => { ev.preventDefault(); store.del('avato_spent'); refresh(); };
   $('go').disabled = busy || !ready || !n || !$('key').value.trim();
-  $('go').textContent = busy ? 'Creando…' : n > 1 ? `✨ Crear ${n} avatares` : '✨ Crear avatar';
+  const what = state.mode === 'scene' ? ['escena', 'escenas'] : state.mode === 'book' ? ['personaje', 'imágenes'] : ['avatar', 'avatares'];
+  $('go').textContent = busy ? 'Creando…' : n > 1 ? `✨ Crear ${n} ${what[1]}` : `✨ Crear ${what[0]}`;
 }
 
 // ---- utilidades de imagen
@@ -634,7 +730,9 @@ function setDone(card, blob, name, retry, cost) {
   ref.onclick = () => { setMode('copy'); setImage('ref', blob, name); state.photo && URL.revokeObjectURL(state.photo.url); state.photo = null; $('dropPhoto')._render(); refresh(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const info = document.createElement('span');
   info.textContent = cost != null ? `costó ${usd(cost)}` : '';
-  foot.append(a, rg, ref, info);
+  const toScene = document.createElement('button'); toScene.textContent = 'Usar en escenas'; toScene.title = 'Agrega este personaje al modo "Escenas del personaje"';
+  toScene.onclick = () => { setMode('scene'); addChar(blob); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  foot.append(a, rg, ref, toScene, info);
 }
 $('zoom').onclick = () => $('zoom').style.display = 'none';
 
@@ -656,25 +754,35 @@ $('go').onclick = async () => {
   if (busy) return;
   const jobs = plan();
   const opts = { mode: state.mode, size: $('size').value, quality: $('quality').value, intensity: +$('intensity').value,
-                 identity: $('identity').checked, frame: state.frame, notes: $('notes').value.trim(), nIn: state.mode === 'style' ? 1 : 2,
-                 subject: state.subject, accent: state.accent, asAnimal: $('asAnimal').value.trim() };
+                 identity: $('identity').checked, frame: state.frame, notes: $('notes').value.trim(), nIn: inputCount(),
+                 subject: state.subject, accent: state.accent, asAnimal: $('asAnimal').value.trim(),
+                 scene: $('sceneTxt').value.trim(), sceneBg: state.sceneBg, withOwl: $('withOwl').checked, names: state.chars.map(c => c.name) };
   const total = estimateEach(opts.size, opts.quality, opts.nIn).usd * jobs.length;
-  if (jobs.length > 1 && !confirm(`Vas a crear ${jobs.length} avatares, costo aproximado ${usd(total)} en OpenAI.\n\n¿Continuar?`)) return;
+  if (jobs.length > 1 && !confirm(`Vas a crear ${jobs.length} imágenes, costo aproximado ${usd(total)} en OpenAI.\n\n¿Continuar?`)) return;
   busy = true; refresh();
   $('outPanel').hidden = false;
   try {
-    const images = [await prepare(state.photo.blob)];
-    if (opts.mode === 'copy') images.push(await prepare(state.ref.blob));
-    if (opts.mode === 'book') images.push(await prepare(await (await fetch('buho-ref.webp')).blob()));
-    const base = slug(state.photo.name.replace(/\.[^.]+$/, '')) || 'foto';
+    const owl = async () => prepare(await (await fetch('buho-ref.webp')).blob());
+    let images, base;
+    if (opts.mode === 'scene') {
+      images = await Promise.all(state.chars.map(c => prepare(c.blob)));
+      if (opts.withOwl) images.push(await owl());
+      base = slug(opts.names.filter(Boolean).join(' ')) || 'personajes';
+    } else {
+      images = [await prepare(state.photo.blob)];
+      if (opts.mode === 'copy') images.push(await prepare(state.ref.blob));
+      if (opts.mode === 'book') images.push(await owl());
+      base = slug(state.photo.name.replace(/\.[^.]+$/, '')) || 'foto';
+    }
     $('outInfo').textContent = '';
-    const runs = jobs.map(({ style, bg }) => {
+    const stamp = new Date().toTimeString().slice(0, 8).replace(/:/g, '');
+    const runs = jobs.map(({ style, bg }, i) => {
       const book = opts.mode === 'book';
-      const title = style ? style.name : book ? 'Personaje del libro' : 'Estilo copiado';
-      const sub = { white: 'Fondo blanco', scene: 'Escenario', whole: 'Personaje entero', sheet: 'Hoja de piezas' }[bg];
-      const kind = { white: 'blanco', scene: 'escenario', whole: 'personaje', sheet: 'piezas' }[bg];
+      const title = style ? style.name : book ? 'Personaje del libro' : opts.mode === 'scene' ? 'Escena' : 'Estilo copiado';
+      const sub = { white: 'Fondo blanco', scene: 'Escenario', whole: 'Personaje entero', sheet: 'Hoja de piezas', take: jobs.length > 1 ? `Versión ${i + 1}` : opts.scene.slice(0, 40) }[bg];
+      const kind = { white: 'blanco', scene: 'escenario', whole: 'personaje', sheet: 'piezas', take: `${stamp}-${i + 1}` }[bg];
       const card = makeCard(title, sub);
-      const name = `avato-${base}-${style ? style.id : book ? 'libro' : 'copia'}-${kind}.png`;
+      const name = `avato-${base}-${style ? style.id : book ? 'libro' : opts.mode === 'scene' ? 'escena' : 'copia'}-${kind}.png`;
       return runJob(card, images, buildPrompt(opts, style, bg), opts, name);
     });
     $('outPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
