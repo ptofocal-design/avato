@@ -331,7 +331,7 @@
 
 <script src="styles.js"></script>
 <script>
-const VERSION = 'v6';
+const VERSION = 'v7';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const store = { get(k){ try { return localStorage.getItem(k) } catch { return null } },
@@ -550,7 +550,8 @@ const COMMON = 'If there are several people, transform all of them consistently.
 
 // ---- Personaje del libro: reglas del manual de estilo de Neuroeducación (búho de referencia)
 const ACCENTS = { musgo: 'moss green #8A9A5B', coral: 'coral #E07A5F', mostaza: 'mustard #D9A441', lavanda: 'grey lavender #9C8AA5', celeste: 'mist blue #8FB3C9' };
-const BOOK_STYLE = 'soft digital watercolor children\'s picture-book illustration with subtle paper grain; cute chibi proportions (the head is about 45% of the total height and a bit wider than the body); feathers, fur, hair and fabric drawn as layered rounded scallops in rows; warm dark-brown outline (#50261C), NEVER black lines; light from the top-left with warm shadows. Eyes exactly like the owl\'s: huge glossy eyes with a big dark navy pupil (#0F1F27), a teal reflection (#1D4D5F) at the bottom, an amber-orange iris ring, two white highlights and three curled eyelashes. Soft pink cheeks (#F2A497), small open smiling mouth with a pink tongue. Palette: about 65% forest browns (#50261C, #994D30, #B3623E, #CA7C53, #E2A073), 25% creams (#F1BB8F, #FCDFB7, #FBEDDE) and small warm orange touches (#F79D1D, #F5931C)';
+const BOOK_STYLE = 'soft digital watercolor children\'s picture-book illustration with subtle paper grain; cute chibi proportions (the head is about 45% of the total height and a bit wider than the body); ONLY feathers and animal fur are drawn as layered rounded scallops in rows; warm dark-brown outline (#50261C), NEVER black lines; light from the top-left with warm shadows. Eyes exactly like the owl\'s: huge glossy eyes with a big dark navy pupil (#0F1F27), a teal reflection (#1D4D5F) at the bottom, an amber-orange iris ring, two white highlights and three curled eyelashes. Soft pink cheeks (#F2A497), small open smiling mouth with a pink tongue. Palette: about 65% forest browns (#50261C, #994D30, #B3623E, #CA7C53, #E2A073), 25% creams (#F1BB8F, #FCDFB7, #FBEDDE) and small warm orange touches (#F79D1D, #F5931C)';
+const MATERIALS = 'IMPORTANT about materials: the scalloped feather texture belongs ONLY to birds and furry animals. Human hair is drawn as soft rounded locks of hair (never feathers or scales). Clothing must look like real fabric, with the texture that fabric has in the photo (soft cotton or fleece, knit, denim, plush), with folds, seams, cuffs and a hood drawn as fabric: NO scallops, NO feather rows, NO scale patterns on clothes, shoes or skin. Keep any visible logo or print on clothing simplified and without letters.';
 const SUBJECT = {
   auto: 'First decide what the subject of the photo is (a person, an animal or an object) and adapt it accordingly.',
   person: 'The subject is a person.',
@@ -571,7 +572,7 @@ function bookPrompt(opts, out) {
   const layout = out === 'sheet'
     ? 'Present it as a paper-puppet cut-out sheet: head, body, arms (or wings) and legs as separate pieces laid out apart, pieces generously overlapping where the joints go, each piece with a white sticker border, plain pure white background, front view, symmetric. Do NOT draw holes, brads, pins or text.'
     : 'Show one single full-body character, front or slight three-quarter view, friendly happy pose, centered, surrounded by a white sticker-style border around its silhouette, on a plain pure white background. No branch, props, scenery or text unless requested.';
-  return `The FIRST image is a photo of the subject. The SECOND image is the reference character of a children's picture book (a cute owl). Create a NEW character for the same book, based on the subject of the first image, drawn in EXACTLY the same art style as the owl: ${BOOK_STYLE}. Do not copy the owl itself. ${SUBJECT[opts.subject]} ${as} ${keep} ${INTENSITY[opts.intensity - 1]} ${accent} ${layout} ${notes}`.trim();
+  return `The FIRST image is a photo of the subject. The SECOND image is the reference character of a children's picture book (a cute owl). Create a NEW character for the same book, based on the subject of the first image, drawn in EXACTLY the same art style as the owl: ${BOOK_STYLE}. ${MATERIALS} Do not copy the owl itself. ${SUBJECT[opts.subject]} ${as} ${keep} ${INTENSITY[opts.intensity - 1]} ${accent} ${layout} ${notes}`.trim();
 }
 
 function scenePrompt(opts) {
@@ -581,7 +582,7 @@ function scenePrompt(opts) {
     ? 'Show only the characters, on a plain pure white background, with a white sticker-style border around their silhouettes, no scenery.'
     : 'Make it a full picture-book illustration with a simple background in the same soft watercolor style and warm palette, gentle composition with some calm empty space for the page text.';
   const notes = opts.notes ? `Extra instructions from the user: ${opts.notes}.` : '';
-  return `The attached images are the official reference images of the characters of a children's picture book (${list.join('; ')}). Draw a NEW illustration for the book showing: ${opts.scene}. Every character must stay perfectly ON-MODEL, exactly like its reference image: same face, head shape and proportions, hair, eye design and eye colors, clothes, colors, patterns and accessories. Only the pose, expression, viewing angle and action change as the scene requires. Do not add other characters unless the scene asks for them. Art style identical to the references: ${BOOK_STYLE}. ${bg} No text, letters, signatures or watermarks. ${notes}`.trim();
+  return `The attached images are the official reference images of the characters of a children's picture book (${list.join('; ')}). Draw a NEW illustration for the book showing: ${opts.scene}. Every character must stay perfectly ON-MODEL, exactly like its reference image: same face, head shape and proportions, hair, eye design and eye colors, clothes, colors, patterns and accessories. Only the pose, expression, viewing angle and action change as the scene requires. Do not add other characters unless the scene asks for them. Art style identical to the references: ${BOOK_STYLE}. ${MATERIALS} ${bg} No text, letters, signatures or watermarks. ${notes}`.trim();
 }
 
 function buildPrompt(opts, style, bg) {
