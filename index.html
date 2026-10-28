@@ -138,8 +138,10 @@
       <p class="hint">Es la misma clave que usa PISTO. Se guarda solo en este navegador y se envía únicamente a OpenAI.</p>
       <div class="row" style="margin-top:8px">
         <input id="key" type="password" placeholder="sk-..." autocomplete="off" style="flex:1;min-width:220px">
+        <button id="testKey">Probar clave</button>
         <button id="clearKey">Borrar</button>
       </div>
+      <p class="hint" id="keyStatus"></p>
       <p class="hint">Se obtiene en platform.openai.com → API keys (se paga por uso, con saldo prepago).</p>
     </details>
   </div>
@@ -242,7 +244,7 @@
 
 <script src="styles.js"></script>
 <script>
-const VERSION = 'v2';
+const VERSION = 'v3';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const store = { get(k){ try { return localStorage.getItem(k) } catch { return null } },
@@ -261,7 +263,31 @@ let busy = false;
 $('key').value = store.get('oai_key') || '';
 if (!$('key').value) $('keybox').open = true;
 $('key').addEventListener('input', () => { store.set('oai_key', $('key').value.trim()); refresh(); });
-$('clearKey').onclick = () => { $('key').value = ''; store.del('oai_key'); $('keybox').open = true; refresh(); };
+$('clearKey').onclick = () => { $('key').value = ''; store.del('oai_key'); $('keybox').open = true; $('keyStatus').textContent = ''; refresh(); };
+
+// Revisa la clave sin gastar nada (consulta gratuita del modelo). Sirve también para explicar un "Failed to fetch":
+// cuando OpenAI rechaza un pedido de imagen, su respuesta de error no deja que el navegador lea el motivo.
+async function checkKey() {
+  const key = $('key').value.trim();
+  if (!key) return { ok: false, msg: 'Falta pegar la clave de OpenAI.' };
+  try {
+    const r = await fetch('https://api.openai.com/v1/models/' + MODEL, { headers: { Authorization: 'Bearer ' + key } });
+    const j = await r.json().catch(() => ({}));
+    const m = j.error?.message || '';
+    if (r.ok) return { ok: true, msg: 'La clave funciona y tiene acceso al modelo de imágenes.' };
+    if (r.status === 401 && /scope|permission/i.test(m)) return { ok: true, msg: 'La clave es válida (está restringida a imágenes, por eso no se puede revisar más).' };
+    if (r.status === 401) return { ok: false, msg: 'La clave de OpenAI no es válida: fijate que esté completa o creá una nueva en platform.openai.com → API keys.' };
+    if (r.status === 403 && /verif/i.test(m)) return { ok: false, msg: 'OpenAI pide verificar tu organización para usar este modelo (platform.openai.com → Settings → Organization → Verify).' };
+    if (r.status === 403 || r.status === 404) return { ok: false, msg: 'Tu cuenta de OpenAI todavía no tiene acceso al modelo de imágenes. ' + m };
+    if (r.status === 429) return { ok: false, msg: 'Sin saldo o límite alcanzado en OpenAI. ' + m };
+    return { ok: true, msg: `OpenAI respondió ${r.status}. ${m}` };
+  } catch { return { ok: false, msg: 'No hay conexión con OpenAI (revisá internet, o un bloqueador/antivirus que corte api.openai.com).' }; }
+}
+$('testKey').onclick = async () => {
+  $('keyStatus').textContent = 'Probando…';
+  const c = await checkKey();
+  $('keyStatus').innerHTML = (c.ok ? '✅ ' : '⚠️ ') + esc(c.msg);
+};
 
 // ---- modos
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
@@ -476,7 +502,15 @@ async function callEdit(images, prompt, opts) {
   fd.append('quality', opts.quality);
   fd.append('output_format', 'png');
   fd.append('n', '1');
-  const r = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: 'Bearer ' + $('key').value.trim() }, body: fd });
+  let r;
+  try { r = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: 'Bearer ' + $('key').value.trim() }, body: fd }); }
+  catch {
+    // "Failed to fetch": OpenAI rechazó el pedido sin dejar leer el motivo. Se averigua con la consulta gratuita.
+    const c = await checkKey();
+    throw new Error(c.ok
+      ? 'OpenAI rechazó el pedido sin explicar el motivo. Casi siempre es falta de saldo: cargá crédito en platform.openai.com → Settings → Billing (puede tardar unos minutos en acreditarse) y reintentá. ' + c.msg
+      : c.msg);
+  }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) {
     let m = j.error?.message || ('Error ' + r.status);
