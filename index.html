@@ -195,9 +195,9 @@
     <h2><span class="n">2</span> Escena del libro <small>Los personajes salen idénticos a sus imágenes oficiales; solo cambian pose, gesto y acción</small></h2>
     <div class="chars" id="chars"></div>
     <input type="file" id="fileChars" accept="image/*" multiple hidden>
-    <p class="hint">Subí la imagen oficial de cada personaje (la que guardaste de “Personaje del libro”) y poné su nombre. Hasta 4.</p>
+    <p class="hint" id="charsHint">Subí la imagen oficial de cada personaje (la que guardaste de “Personaje del libro”) y poné su nombre. Hasta 4.</p>
     <div class="settings" style="margin-top:14px">
-      <label class="toggle">
+      <label class="toggle" id="owlToggle">
         <input type="checkbox" id="withOwl" checked>
         <div><b>Incluir al Búho</b><span>Agrega al Búho de referencia como personaje de la escena (y ayuda a mantener el estilo).</span></div>
       </label>
@@ -206,6 +206,7 @@
         <div class="seg" id="sceneBg">
           <button data-v="scene" class="on">🏞️ Ilustración con escenario</button>
           <button data-v="white">⬜ Personajes sueltos</button>
+          <button data-v="stage">🌳 Solo el escenario</button>
         </div>
       </div>
       <div class="field">
@@ -217,9 +218,9 @@
         </div>
       </div>
       <div class="field" style="grid-column: 1 / -1">
-        <label for="sceneTxt">¿Qué pasa en la escena?</label>
+        <label for="sceneTxt" id="sceneLbl">¿Qué pasa en la escena?</label>
         <textarea id="sceneTxt" rows="3" placeholder="Ej: Lio está sentado en el pasto leyendo un libro y el Búho, posado en su hombro, señala una página. Están contentos, es de tarde."></textarea>
-        <p class="hint">Nombrá a los personajes igual que en sus tarjetas. Para una página de libro conviene el formato Horizontal 3:2.</p>
+        <p class="hint" id="sceneHint">Nombrá a los personajes igual que en sus tarjetas. Para una página de libro conviene el formato Horizontal 3:2.</p>
       </div>
     </div>
   </div>
@@ -299,6 +300,7 @@
           <option value="1024x1536">Vertical 2:3</option>
           <option value="1152x2048">Vertical 9:16 (historias)</option>
           <option value="1536x1024">Horizontal 3:2</option>
+          <option value="2048x1024">Panorámico 2:1 (fondo del escenario)</option>
         </select>
       </div>
       <div class="field">
@@ -338,7 +340,7 @@
 
 <script src="styles.js"></script>
 <script>
-const VERSION = 'v8';
+const VERSION = 'v9';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const store = { get(k){ try { return localStorage.getItem(k) } catch { return null } },
@@ -501,6 +503,7 @@ function setupSeg(id, key) {
 setupSeg('bg', 'bg'); setupSeg('frame', 'frame');
 setupSeg('subject', 'subject'); setupSeg('accent', 'accent'); setupSeg('output', 'output');
 setupSeg('sceneBg', 'sceneBg'); setupSeg('takes', 'takes');
+$('sceneBg').addEventListener('click', e => { if (e.target.closest('button')?.dataset.v === 'stage') { $('size').value = '2048x1024'; refresh(); } });
 $('sceneTxt').oninput = $('withOwl').onchange = () => refresh();
 
 // ---- personajes para escenas
@@ -582,7 +585,12 @@ function bookPrompt(opts, out) {
   return `The FIRST image is a photo of the subject. The SECOND image is the reference character of a children's picture book (a cute owl). Create a NEW character for the same book, based on the subject of the first image, drawn in EXACTLY the same art style as the owl: ${BOOK_STYLE}. ${MATERIALS} Do not copy the owl itself. ${SUBJECT[opts.subject]} ${as} ${keep} ${INTENSITY[opts.intensity - 1]} ${accent} ${layout} ${notes}`.trim();
 }
 
+function stagePrompt(opts) {
+  const notes = opts.notes ? `Extra instructions from the user: ${opts.notes}.` : '';
+  return `The attached image is the reference character of a children's picture book (a cute owl); use it ONLY as the reference for the art style. Do NOT draw the owl. Paint an empty background for a toy theater stage showing: ${opts.scene}. Style: soft digital watercolor children's picture-book illustration with subtle paper grain, warm dark-brown outlines (#50261C), NEVER black lines, rounded friendly shapes, a palette of forest browns (#50261C, #994D30, #B3623E, #CA7C53, #E2A073), creams (#F1BB8F, #FCDFB7, #FBEDDE) and warm orange touches (#F79D1D), adapted to the time of day the description asks for. The scene must be COMPLETELY EMPTY: no characters, no people, no animals, no birds, no insects, no faces. No fireflies or glowing dots unless the description explicitly asks for them. Fill the whole image edge to edge, with no border, no frame and no sticker edge. Show the ground at the bottom as a simple, calm surface where cut-out characters will stand, and leave the central area open and uncluttered. Keep important elements away from the outer 10% of the image, because the edges will be hidden by the stage frame. No text, letters, signatures or watermarks. ${notes}`.trim();
+}
 function scenePrompt(opts) {
+  if (opts.sceneBg === 'stage') return stagePrompt(opts);
   const list = opts.names.map((n, i) => `image ${i + 1} = ${n || 'a main character'}`);
   if (opts.withOwl) list.push(`image ${list.length + 1} = the Owl ("el Búho")`);
   const bg = opts.sceneBg === 'white'
@@ -638,12 +646,18 @@ function plan() {
   return styles.flatMap(s => bgs.map(bg => ({ style: s, bg })));
 }
 
-const inputCount = () => state.mode === 'style' ? 1 : state.mode === 'scene' ? state.chars.length + ($('withOwl').checked ? 1 : 0) : 2;
+const isStage = () => state.mode === 'scene' && state.sceneBg === 'stage';
+const inputCount = () => state.mode === 'style' || isStage() ? 1 : state.mode === 'scene' ? state.chars.length + ($('withOwl').checked ? 1 : 0) : 2;
 function refresh() {
+  const stage = isStage();
+  $('chars').hidden = $('charsHint').hidden = $('owlToggle').hidden = stage;
+  $('sceneLbl').textContent = stage ? '¿Cómo es el escenario?' : '¿Qué pasa en la escena?';
+  $('sceneTxt').placeholder = stage ? 'Ej: claro de un bosque al atardecer, cielo naranja, árboles a los costados y pasto suave adelante.' : 'Ej: Lio está sentado en el pasto leyendo un libro y el Búho, posado en su hombro, señala una página. Están contentos, es de tarde.';
+  $('sceneHint').textContent = stage ? 'Sale vacío, sin personajes y a todo el cuadro. Para el maletín conviene el formato Panorámico 2:1.' : 'Nombrá a los personajes igual que en sus tarjetas. Para una página de libro conviene el formato Horizontal 3:2.';
   const nIn = inputCount(), jobs = plan(), n = jobs.length;
   const e = estimateEach($('size').value, $('quality').value, nIn);
   const ready = state.mode === 'scene'
-    ? (state.chars.length || $('withOwl').checked) && $('sceneTxt').value.trim()
+    ? (stage || state.chars.length || $('withOwl').checked) && $('sceneTxt').value.trim()
     : state.photo && (state.mode === 'style' ? state.sel.size : state.mode === 'copy' ? state.ref : true);
   const tag = e.real ? 'según tus generaciones anteriores' : 'estimación';
   $('costLine').innerHTML = !n ? 'Elegí al menos un estilo.'
@@ -652,7 +666,7 @@ function refresh() {
   $('spent').innerHTML = spent > 0 ? `Gastado con AVATO en este dispositivo: ${usd(spent)} · <a href="#" id="resetSpent" style="color:inherit">reiniciar</a>` : '';
   const r = $('resetSpent'); if (r) r.onclick = ev => { ev.preventDefault(); store.del('avato_spent'); refresh(); };
   $('go').disabled = busy || !ready || !n || !$('key').value.trim();
-  const what = state.mode === 'scene' ? ['escena', 'escenas'] : state.mode === 'book' ? ['personaje', 'imágenes'] : ['avatar', 'avatares'];
+  const what = stage ? ['escenario', 'escenarios'] : state.mode === 'scene' ? ['escena', 'escenas'] : state.mode === 'book' ? ['personaje', 'imágenes'] : ['avatar', 'avatares'];
   $('go').textContent = busy ? 'Creando…' : n > 1 ? `✨ Crear ${n} ${what[1]}` : `✨ Crear ${what[0]}`;
 }
 
@@ -773,7 +787,10 @@ $('go').onclick = async () => {
   try {
     const owl = async () => prepare(await (await fetch('buho-ref.webp')).blob());
     let images, base;
-    if (opts.mode === 'scene') {
+    if (opts.sceneBg === 'stage' && opts.mode === 'scene') {
+      images = [await owl()];
+      base = 'fondo';
+    } else if (opts.mode === 'scene') {
       images = await Promise.all(state.chars.map(c => prepare(c.blob)));
       if (opts.withOwl) images.push(await owl());
       base = slug(opts.names.filter(Boolean).join(' ')) || 'personajes';
@@ -787,11 +804,11 @@ $('go').onclick = async () => {
     const stamp = new Date().toTimeString().slice(0, 8).replace(/:/g, '');
     const runs = jobs.map(({ style, bg }, i) => {
       const book = opts.mode === 'book';
-      const title = style ? style.name : book ? 'Personaje del libro' : opts.mode === 'scene' ? 'Escena' : 'Estilo copiado';
+      const title = style ? style.name : book ? 'Personaje del libro' : opts.mode === 'scene' ? (opts.sceneBg === 'stage' ? 'Escenario' : 'Escena') : 'Estilo copiado';
       const sub = { white: 'Fondo blanco', scene: 'Escenario', whole: 'Personaje entero', sheet: 'Hoja de piezas', take: jobs.length > 1 ? `Versión ${i + 1}` : opts.scene.slice(0, 40) }[bg];
       const kind = { white: 'blanco', scene: 'escenario', whole: 'personaje', sheet: 'piezas', take: `${stamp}-${i + 1}` }[bg];
       const card = makeCard(title, sub);
-      const name = `avato-${base}-${style ? style.id : book ? 'libro' : opts.mode === 'scene' ? 'escena' : 'copia'}-${kind}.png`;
+      const name = `avato-${base}-${style ? style.id : book ? 'libro' : opts.mode === 'scene' ? (opts.sceneBg === 'stage' ? 'escenario' : 'escena') : 'copia'}-${kind}.png`;
       return runJob(card, images, buildPrompt(opts, style, bg), opts, name);
     });
     $('outPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
