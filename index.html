@@ -196,6 +196,12 @@
     <div class="chars" id="chars"></div>
     <input type="file" id="fileChars" accept="image/*" multiple hidden>
     <p class="hint" id="charsHint">Subí la imagen oficial de cada personaje (la que guardaste de “Personaje del libro”) y poné su nombre. Hasta 4.</p>
+    <div id="stageRefBox" hidden>
+      <label>En referencia a… (opcional)</label>
+      <div class="drops" style="margin-top:6px"><div class="drop" id="dropStageRef" tabindex="0"></div></div>
+      <input type="file" id="fileStageRef" accept="image/*" hidden>
+      <p class="hint">Subí una imagen de un lugar, aunque tenga personajes: AVATO toma el lugar, la composición y la luz, y deja el escenario vacío.</p>
+    </div>
     <div class="settings" style="margin-top:14px">
       <label class="toggle" id="owlToggle">
         <input type="checkbox" id="withOwl" checked>
@@ -340,7 +346,7 @@
 
 <script src="styles.js"></script>
 <script>
-const VERSION = 'v9';
+const VERSION = 'v10';
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const store = { get(k){ try { return localStorage.getItem(k) } catch { return null } },
@@ -430,18 +436,20 @@ function setupDrop(el, input, slot, title, sub, icon) {
 function setImage(slot, blob, name) {
   if (state[slot]) URL.revokeObjectURL(state[slot].url);
   state[slot] = { blob, name: name || blob.name || 'imagen', url: URL.createObjectURL(blob) };
-  (slot === 'photo' ? $('dropPhoto') : $('dropRef'))._render();
+  ({ photo: $('dropPhoto'), ref: $('dropRef'), stageRef: $('dropStageRef') })[slot]._render();
   refresh();
 }
 setupDrop($('dropPhoto'), $('filePhoto'), 'photo', 'Tu foto', 'Tocá para elegir o arrastrala acá', '📸');
 setupDrop($('dropRef'), $('fileRef'), 'ref', 'Avatar de referencia', 'La imagen con el estilo a copiar', '🪄');
+setupDrop($('dropStageRef'), $('fileStageRef'), 'stageRef', 'Escenario de referencia', 'Tocá para elegir o arrastrala acá', '🌳');
 
 // Ctrl+V: va a la foto, salvo que en modo copiar ya haya foto y falte la referencia
 window.addEventListener('paste', e => {
   const f = [...(e.clipboardData?.items || [])].find(it => it.kind === 'file' && it.type.startsWith('image/'))?.getAsFile();
   if (!f) return;
   e.preventDefault();
-  if (state.mode === 'scene') addChar(f);
+  if (isStage()) setImage('stageRef', f, 'pegada.png');
+  else if (state.mode === 'scene') addChar(f);
   else setImage(state.mode === 'copy' && state.photo && !state.ref ? 'ref' : 'photo', f, 'pegada.png');
 });
 
@@ -587,7 +595,10 @@ function bookPrompt(opts, out) {
 
 function stagePrompt(opts) {
   const notes = opts.notes ? `Extra instructions from the user: ${opts.notes}.` : '';
-  return `The attached image is the reference character of a children's picture book (a cute owl); use it ONLY as the reference for the art style. Do NOT draw the owl. Paint an empty background for a toy theater stage showing: ${opts.scene}. Style: soft digital watercolor children's picture-book illustration with subtle paper grain, warm dark-brown outlines (#50261C), NEVER black lines, rounded friendly shapes, a palette of forest browns (#50261C, #994D30, #B3623E, #CA7C53, #E2A073), creams (#F1BB8F, #FCDFB7, #FBEDDE) and warm orange touches (#F79D1D), adapted to the time of day the description asks for. The scene must be COMPLETELY EMPTY: no characters, no people, no animals, no birds, no insects, no faces. No fireflies or glowing dots unless the description explicitly asks for them. Fill the whole image edge to edge, with no border, no frame and no sticker edge. Show the ground at the bottom as a simple, calm surface where cut-out characters will stand, and leave the central area open and uncluttered. Keep important elements away from the outer 10% of the image, because the edges will be hidden by the stage frame. No text, letters, signatures or watermarks. ${notes}`.trim();
+  const owl = opts.hasStageRef ? 'The SECOND attached image' : 'The attached image';
+  const ref = opts.hasStageRef ? `The FIRST attached image is a reference for the place: follow its setting, composition, main elements and lighting, but redraw everything in the style described below, and REMOVE every character, person and animal it contains, painting the scenery that would be behind them. ` : '';
+  const what = opts.scene ? `showing: ${opts.scene}` : 'showing the place in the reference image';
+  return `${ref}${owl} is the reference character of a children's picture book (a cute owl); use it ONLY as the reference for the art style. Do NOT draw the owl. Paint an empty background for a toy theater stage ${what}. Style: soft digital watercolor children's picture-book illustration with subtle paper grain, warm dark-brown outlines (#50261C), NEVER black lines, rounded friendly shapes, a palette of forest browns (#50261C, #994D30, #B3623E, #CA7C53, #E2A073), creams (#F1BB8F, #FCDFB7, #FBEDDE) and warm orange touches (#F79D1D), adapted to the time of day the description asks for. The scene must be COMPLETELY EMPTY: no characters, no people, no animals, no birds, no insects, no faces. No fireflies or glowing dots unless the description explicitly asks for them. Fill the whole image edge to edge, with no border, no frame and no sticker edge. Show the ground at the bottom as a simple, calm surface where cut-out characters will stand, and leave the central area open and uncluttered. Keep important elements away from the outer 10% of the image, because the edges will be hidden by the stage frame. No text, letters, signatures or watermarks. ${notes}`.trim();
 }
 function scenePrompt(opts) {
   if (opts.sceneBg === 'stage') return stagePrompt(opts);
@@ -647,17 +658,18 @@ function plan() {
 }
 
 const isStage = () => state.mode === 'scene' && state.sceneBg === 'stage';
-const inputCount = () => state.mode === 'style' || isStage() ? 1 : state.mode === 'scene' ? state.chars.length + ($('withOwl').checked ? 1 : 0) : 2;
+const inputCount = () => isStage() ? (state.stageRef ? 2 : 1) : state.mode === 'style' ? 1 : state.mode === 'scene' ? state.chars.length + ($('withOwl').checked ? 1 : 0) : 2;
 function refresh() {
   const stage = isStage();
   $('chars').hidden = $('charsHint').hidden = $('owlToggle').hidden = stage;
+  $('stageRefBox').hidden = !stage;
   $('sceneLbl').textContent = stage ? '¿Cómo es el escenario?' : '¿Qué pasa en la escena?';
   $('sceneTxt').placeholder = stage ? 'Ej: claro de un bosque al atardecer, cielo naranja, árboles a los costados y pasto suave adelante.' : 'Ej: Lio está sentado en el pasto leyendo un libro y el Búho, posado en su hombro, señala una página. Están contentos, es de tarde.';
   $('sceneHint').textContent = stage ? 'Sale vacío, sin personajes y a todo el cuadro. Para el maletín conviene el formato Panorámico 2:1.' : 'Nombrá a los personajes igual que en sus tarjetas. Para una página de libro conviene el formato Horizontal 3:2.';
   const nIn = inputCount(), jobs = plan(), n = jobs.length;
   const e = estimateEach($('size').value, $('quality').value, nIn);
   const ready = state.mode === 'scene'
-    ? (stage || state.chars.length || $('withOwl').checked) && $('sceneTxt').value.trim()
+    ? stage ? state.stageRef || $('sceneTxt').value.trim() : (state.chars.length || $('withOwl').checked) && $('sceneTxt').value.trim()
     : state.photo && (state.mode === 'style' ? state.sel.size : state.mode === 'copy' ? state.ref : true);
   const tag = e.real ? 'según tus generaciones anteriores' : 'estimación';
   $('costLine').innerHTML = !n ? 'Elegí al menos un estilo.'
@@ -779,7 +791,7 @@ $('go').onclick = async () => {
   const opts = { mode: state.mode, size: $('size').value, quality: $('quality').value, intensity: +$('intensity').value,
                  identity: $('identity').checked, frame: state.frame, notes: $('notes').value.trim(), nIn: inputCount(),
                  subject: state.subject, accent: state.accent, asAnimal: $('asAnimal').value.trim(),
-                 scene: $('sceneTxt').value.trim(), sceneBg: state.sceneBg, withOwl: $('withOwl').checked, names: state.chars.map(c => c.name) };
+                 scene: $('sceneTxt').value.trim(), sceneBg: state.sceneBg, withOwl: $('withOwl').checked, hasStageRef: isStage() && !!state.stageRef, names: state.chars.map(c => c.name) };
   const total = estimateEach(opts.size, opts.quality, opts.nIn).usd * jobs.length;
   if (jobs.length > 1 && !confirm(`Vas a crear ${jobs.length} imágenes, costo aproximado ${usd(total)} en OpenAI.\n\n¿Continuar?`)) return;
   busy = true; refresh();
@@ -789,6 +801,7 @@ $('go').onclick = async () => {
     let images, base;
     if (opts.sceneBg === 'stage' && opts.mode === 'scene') {
       images = [await owl()];
+      if (opts.hasStageRef) images.unshift(await prepare(state.stageRef.blob));
       base = 'fondo';
     } else if (opts.mode === 'scene') {
       images = await Promise.all(state.chars.map(c => prepare(c.blob)));
@@ -805,7 +818,7 @@ $('go').onclick = async () => {
     const runs = jobs.map(({ style, bg }, i) => {
       const book = opts.mode === 'book';
       const title = style ? style.name : book ? 'Personaje del libro' : opts.mode === 'scene' ? (opts.sceneBg === 'stage' ? 'Escenario' : 'Escena') : 'Estilo copiado';
-      const sub = { white: 'Fondo blanco', scene: 'Escenario', whole: 'Personaje entero', sheet: 'Hoja de piezas', take: jobs.length > 1 ? `Versión ${i + 1}` : opts.scene.slice(0, 40) }[bg];
+      const sub = { white: 'Fondo blanco', scene: 'Escenario', whole: 'Personaje entero', sheet: 'Hoja de piezas', take: jobs.length > 1 ? `Versión ${i + 1}` : opts.scene.slice(0, 40) || 'Según la referencia' }[bg];
       const kind = { white: 'blanco', scene: 'escenario', whole: 'personaje', sheet: 'piezas', take: `${stamp}-${i + 1}` }[bg];
       const card = makeCard(title, sub);
       const name = `avato-${base}-${style ? style.id : book ? 'libro' : opts.mode === 'scene' ? (opts.sceneBg === 'stage' ? 'escenario' : 'escena') : 'copia'}-${kind}.png`;
@@ -826,8 +839,8 @@ $('clearRes').onclick = () => { if (confirm('¿Borrar todos los resultados? Desc
 $('reset').onclick = () => {
   if (busy) return;
   if (!confirm('¿Empezar de cero? Se borran la foto, los personajes de escenas, los textos y los resultados (descargá antes lo que quieras guardar).')) return;
-  for (const slot of ['photo', 'ref']) if (state[slot]) { URL.revokeObjectURL(state[slot].url); state[slot] = null; }
-  $('dropPhoto')._render(); $('dropRef')._render();
+  for (const slot of ['photo', 'ref', 'stageRef']) if (state[slot]) { URL.revokeObjectURL(state[slot].url); state[slot] = null; }
+  $('dropPhoto')._render(); $('dropRef')._render(); $('dropStageRef')._render();
   state.chars.forEach(c => URL.revokeObjectURL(c.url)); state.chars = []; renderChars();
   for (const id of ['notes', 'asAnimal', 'sceneTxt']) $(id).value = '';
   clearResults();
